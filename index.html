@@ -48,6 +48,7 @@ label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--in
 .home-bar .pri{flex:1 1 100%;min-height:60px;font-size:19px}
 .home-bar button:not(.pri){flex:1}
 .step{background:var(--card);border-left:8px solid #e53935;border-radius:12px;padding:12px;margin:12px 0}
+.step-tag{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);margin-bottom:8px}
 .tools{display:flex;gap:6px;margin-left:auto}
 .tools button{padding:6px 10px;min-height:40px}
 .muted{color:var(--mute)}
@@ -61,11 +62,11 @@ label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--in
 #run{position:fixed;inset:0;z-index:10;background:#000;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));overflow:hidden}
 #box{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
 #txt{white-space:pre;text-align:center;line-height:1.1;font-weight:800;display:inline-block}
-#x{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;background:rgba(0,0,0,.35);color:#fff;border:0;border-radius:22px;width:44px;padding:0}
-#res{position:absolute;inset:0;background:var(--bg);color:var(--ink);padding:max(24px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom));overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#x{position:absolute;z-index:15;top:max(10px,env(safe-area-inset-top));left:10px;background:rgba(0,0,0,.35);color:#fff;border:0;border-radius:22px;width:44px;padding:0}
+#res{position:absolute;inset:0;z-index:20;background:var(--bg);color:var(--ink);padding:max(24px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom));overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 #res .inner{width:100%;max-width:600px}
-#res .bar{justify-content:center}
-#res .bar button{flex:1;min-height:56px}
+#res .bar{justify-content:center;margin-top:24px}
+#res .bar button{flex:1;min-height:56px;font-size:18px}
 .big{font-size:56px;font-weight:800}
 </style>
 </head>
@@ -95,35 +96,47 @@ label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--in
 <script>
 const $=s=>document.querySelector(s);
 const KEY='reflexos.v2';
+const BLINK_BG='#1b2030';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
 const rd=()=>{try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}};
 const isR=e=>e.type==='react';
+const L0='0.5; 1.2; 0.3';
+const newStep=(c='#e53935',txt='')=>({color:c,text:txt,tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:L0,rnd:false,tapNext:true});
+
 function norm(e){
   e.type=e.type||(e.react?'react':'show');
   delete e.react;
-  if(Array.isArray(e.steps)){
-    e.steps.forEach(s=>{
-      if(s.tapNext===undefined)s.tapNext=e.tapNext!==undefined?!!e.tapNext:true;
-    });
-  }
+  if(!Array.isArray(e.steps))e.steps=[];
+  e.steps.forEach(s=>{
+    if(s.tapNext===undefined)s.tapNext=e.tapNext!==undefined?!!e.tapNext:true;
+  });
   delete e.tapNext;
+  if(isR(e)){
+    e.shuffle=false;
+    if(e.steps.length<2){
+      if(!e.steps[0])e.steps[0]=newStep('#e53935','ESPERA');
+      e.steps[1]=newStep('#43a047','JÁ!');
+      e.steps[1].mode='range';e.steps[1].a=1;e.steps[1].b=2;
+    }else if(e.steps.length>2){
+      e.steps=e.steps.slice(0,2);
+    }
+  }
   return e;
 }
-const L0='0.5; 1.2; 0.3';
+
 let db=rd()||[
- {id:uid(),type:'show',name:'Exemplo: 4 cores',rep:5,cd:3,shuffle:true,steps:[
+ {id:uid(),type:'show',name:'Exemplo: 4 cores',rep:6,cd:3,shuffle:true,steps:[
   {color:'#e53935',text:'VERMELHO',tcolor:'#ffffff',mode:'range',a:0.4,b:1.5,list:L0,rnd:false,tapNext:true},
   {color:'#1e88e5',text:'AZUL',tcolor:'#ffffff',mode:'range',a:0.4,b:1.5,list:L0,rnd:false,tapNext:true},
   {color:'#43a047',text:'VERDE',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:L0,rnd:false,tapNext:true},
   {color:'#fdd835',text:'AMARELO',tcolor:'#000000',mode:'ramp',a:1.2,b:0.3,list:L0,rnd:false,tapNext:true}]},
- {id:uid(),type:'react',name:'Exemplo: reação',rep:10,cd:3,shuffle:true,steps:[
-  {color:'#e53935',text:'JÁ!',tcolor:'#ffffff',mode:'range',a:1,b:3,list:L0,rnd:false,tapNext:true},
-  {color:'#43a047',text:'JÁ!',tcolor:'#ffffff',mode:'range',a:1,b:3,list:L0,rnd:false,tapNext:true}]}
+ {id:uid(),type:'react',name:'Exemplo: reação',rep:5,cd:3,shuffle:false,steps:[
+  {color:'#e53935',text:'ESPERA',tcolor:'#ffffff',mode:'range',a:1,b:3,list:L0,rnd:false,tapNext:false},
+  {color:'#43a047',text:'JÁ!',tcolor:'#ffffff',mode:'fixed',a:2,b:2,list:L0,rnd:false,tapNext:true}]}
 ];
 db.forEach(norm);
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}};
-const newStep=()=>({color:'#e53935',text:'',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:L0,rnd:false,tapNext:true});
 let cur=null,from='home',run=null,lockObj=null,tab='show',sel=null;
 function view(v){['home','edit','prep'].forEach(x=>$('#'+x).hidden=x!==v)}
 
@@ -131,12 +144,18 @@ function view(v){['home','edit','prep'].forEach(x=>$('#'+x).hidden=x!==v)}
 function home(){
   view('home');
   $('#tabs').innerHTML=[['show','Cores'],['react','Reação']].map(([k,v])=>`<button class="${tab===k?'on':''}" data-a="tab" data-t="${k}">${v}</button>`).join('');
-  $('#desc').textContent=tab==='react'?'Tocas no ecrã quando a cor muda e mede-se o tempo de reação.':'Só mostra as cores a mudar, sem medir toques.';
+  $('#desc').textContent=tab==='react'?'1.ª cor de espera (não clicável) e 2.ª cor de reação (clicável).':'Só mostra as cores a mudar, sem medir toques.';
   const L=db.filter(e=>e.type===tab);
-  $('#list').innerHTML=L.map(e=>`<div class="ex"><button class="open" data-a="open" data-id="${e.id}"><span>${esc(e.name||'Sem nome')}</span>
-    <small>${e.steps.length} passos · ${e.rep}×${isR(e)&&e.last?' · média '+e.last.avg+' ms':''}</small></button>
-    <button class="ed" data-a="edit" data-id="${e.id}">Editar</button></div>`).join('')
-    ||'<p class="muted">Ainda não tens exercícios aqui. Cria o primeiro.</p>';
+  $('#list').innerHTML=L.map(e=>{
+    const sub=isR(e)
+      ?`${e.rep}×${e.last?' · média '+e.last.avg+' ms':''}`
+      :e.shuffle
+        ?`${e.steps.length} cores · ${e.rep} sorteadas`
+        :`${e.steps.length} passos · ${e.rep}×`;
+    return `<div class="ex"><button class="open" data-a="open" data-id="${e.id}"><span>${esc(e.name||'Sem nome')}</span>
+      <small>${sub}</small></button>
+      <button class="ed" data-a="edit" data-id="${e.id}">Editar</button></div>`;
+  }).join('')||'<p class="muted">Ainda não tens exercícios aqui. Cria o primeiro.</p>';
 }
 
 /* ---------- Página antes do exercício ---------- */
@@ -145,8 +164,16 @@ function prep(id){
   if(!e){home();return}
   view('prep');
   const r=isR(e);
-  const rows=[['Tipo',r?'Reação':'Cores'],['Passos',e.steps.length],['Repetições',e.rep],['Contagem inicial',(e.cd|0)+' s'],['Ordem aleatória',e.shuffle?'Sim':'Não']];
-  if(r&&e.last)rows.push(['Última média',e.last.avg+' ms']);
+  const rows=[['Tipo',r?'Reação':'Cores']];
+  if(r){
+    rows.push(['Repetições',e.rep],['Contagem inicial',(e.cd|0)+' s']);
+    if(e.last)rows.push(['Última média',e.last.avg+' ms']);
+  }else{
+    rows.push(['Cores criadas',e.steps.length]);
+    rows.push([e.shuffle?'Cores a mostrar':'Repetições',e.rep]);
+    rows.push(['Contagem inicial',(e.cd|0)+' s']);
+    rows.push(['Ordem aleatória',e.shuffle?'Sim':'Não']);
+  }
   $('#prep').innerHTML=`<h1 style="text-align:center">${esc(e.name||'Sem nome')}</h1>
   <div class="sum">${rows.map(([k,v])=>`<div><span class="muted">${k}</span><b>${v}</b></div>`).join('')}</div>
   <div class="prepbar"><button class="pri go" data-a="go">Começar</button><button class="back" data-a="back">Voltar</button></div>`;
@@ -163,29 +190,35 @@ function timingHtml(s,i){
     <label class="chk"><input type="checkbox" data-i="${i}" data-k="rnd" ${s.rnd?'checked':''}> Escolher ao acaso</label>`;
 }
 function stepHtml(s,i){
+  const r=isR(cur);
+  const tag=r?(i===0?'1.ª Cor — Espera (não clicável)':'2.ª Cor — Ação (clicável)'):'';
+  const tools=r?'':`<div class="tools"><button data-a="up" data-i="${i}">↑</button><button data-a="down" data-i="${i}">↓</button>
+    <button data-a="dup" data-i="${i}">⧉</button><button class="bad" data-a="del" data-i="${i}">✕</button></div>`;
+  const timeLabel=r?(i===0?'Tempo de espera antes de mudar':'Tempo máximo para tocar'):'Tempo até à cor seguinte';
   return `<div class="step" style="border-left-color:${s.color}">
+  ${tag?`<div class="step-tag">${tag}</div>`:''}
   <div class="row"><input type="color" data-i="${i}" data-k="color" value="${s.color}" aria-label="Cor de fundo">
-  <input type="color" data-i="${i}" data-k="tcolor" value="${s.tcolor}" aria-label="Cor do texto">
-  <div class="tools"><button data-a="up" data-i="${i}">↑</button><button data-a="down" data-i="${i}">↓</button>
-  <button data-a="dup" data-i="${i}">⧉</button><button class="bad" data-a="del" data-i="${i}">✕</button></div></div>
+  <input type="color" data-i="${i}" data-k="tcolor" value="${s.tcolor}" aria-label="Cor do texto">${tools}</div>
   <label>Texto (Enter = nova linha; encolhe para caber)</label>
   <textarea rows="2" data-i="${i}" data-k="text">${esc(s.text)}</textarea>
-  <label>Tempo até à cor seguinte</label>
+  <label>${timeLabel}</label>
   <select data-i="${i}" data-k="mode">${Object.entries(MODES).map(([k,v])=>`<option value="${k}" ${s.mode===k?'selected':''}>${v}</option>`).join('')}</select>
   ${timingHtml(s,i)}
-  ${isR(cur)?`<label class="chk"><input type="checkbox" data-i="${i}" data-k="tapNext" ${s.tapNext!==false?'checked':''}> Ao tocar, passa logo para a próxima cor</label>`:''}
+  ${r&&i===1?`<label class="chk"><input type="checkbox" data-i="${i}" data-k="tapNext" ${s.tapNext!==false?'checked':''}> Ao tocar, passa logo para a próxima repetição</label>`:''}
   </div>`;
 }
 function editor(){
   view('edit');
-  $('#edit').innerHTML=`<h1>${isR(cur)?'Exercício de reação':'Exercício de cores'}</h1>
-  <p class="muted">${isR(cur)?'Tocas no ecrã sempre que a cor mudar. No fim vês média, melhor, pior e falhas.':'Só mostra as cores, sem medir toques.'}</p>
+  const r=isR(cur);
+  const repLabel=!r&&cur.shuffle?'Número de cores':'Repetições';
+  $('#edit').innerHTML=`<h1>${r?'Exercício de reação':'Exercício de cores'}</h1>
+  <p class="muted">${r?'Define a 1.ª cor de espera (não clicável) e a 2.ª cor onde deves tocar.':'Só mostra as cores, sem medir toques.'}</p>
   <label>Nome</label><input data-k="name" value="${esc(cur.name)}">
-  <div class="row"><div><label>Repetições</label><input type="number" inputmode="numeric" min="1" data-k="rep" value="${cur.rep}"></div>
+  <div class="row"><div><label id="rep-lbl">${repLabel}</label><input type="number" inputmode="numeric" min="1" data-k="rep" value="${cur.rep}"></div>
   <div><label>Contagem inicial (s)</label><input type="number" inputmode="numeric" min="0" data-k="cd" value="${cur.cd}"></div></div>
-  <label class="chk"><input type="checkbox" data-k="shuffle" ${cur.shuffle?'checked':''}> Ordem aleatória das cores</label>
+  ${!r?`<label class="chk"><input type="checkbox" data-k="shuffle" ${cur.shuffle?'checked':''}> Ordem aleatória das cores</label>`:''}
   ${cur.steps.map(stepHtml).join('')}
-  <button data-a="add" style="width:100%">+ Adicionar passo</button>
+  ${!r?`<button data-a="add" style="width:100%">+ Adicionar passo</button>`:''}
   <div class="bar"><button class="pri" data-a="save">Guardar</button><button data-a="test">▶ Testar</button>
   <button data-a="cancel">Voltar</button><button class="bad" data-a="delex">Apagar</button></div>`;
 }
@@ -194,6 +227,10 @@ $('#edit').addEventListener('input',e=>{
   const o=t.dataset.i!==undefined?cur.steps[+t.dataset.i]:cur;
   o[k]=t.type==='checkbox'?t.checked:t.type==='number'?+t.value:t.value;
   if(k==='color')t.closest('.step').style.borderLeftColor=t.value;
+  if(k==='shuffle'){
+    const lbl=$('#rep-lbl');
+    if(lbl)lbl.textContent=cur.shuffle?'Número de cores':'Repetições';
+  }
 });
 $('#edit').addEventListener('change',e=>{if(e.target.dataset.k==='mode')editor()});
 
@@ -205,8 +242,17 @@ document.addEventListener('click',e=>{
   else if(a==='open'){prep(id)}
   else if(a==='go'){start(db.find(x=>x.id===sel),'prep')}
   else if(a==='back'){home()}
-  else if(a==='new'){cur={id:uid(),type:tab,name:'',rep:5,cd:3,shuffle:false,steps:[newStep()]};editor()}
-  else if(a==='edit'){cur=JSON.parse(JSON.stringify(db.find(x=>x.id===id)));editor()}
+  else if(a==='new'){
+    const steps=tab==='react'
+      ?[
+        {color:'#e53935',text:'ESPERA',tcolor:'#ffffff',mode:'range',a:1,b:3,list:L0,rnd:false,tapNext:false},
+        {color:'#43a047',text:'JÁ!',tcolor:'#ffffff',mode:'fixed',a:2,b:2,list:L0,rnd:false,tapNext:true}
+      ]
+      :[newStep()];
+    cur={id:uid(),type:tab,name:'',rep:5,cd:3,shuffle:false,steps};
+    editor();
+  }
+  else if(a==='edit'){cur=norm(JSON.parse(JSON.stringify(db.find(x=>x.id===id))));editor()}
   else if(a==='add'){S.push(newStep());editor()}
   else if(a==='del'){if(S.length>1){S.splice(i,1);editor()}}
   else if(a==='dup'){S.splice(i+1,0,JSON.parse(JSON.stringify(S[i])));editor()}
@@ -218,8 +264,15 @@ document.addEventListener('click',e=>{
   else if(a==='delex'){if(confirm('Apagar este exercício?')){db=db.filter(x=>x.id!==cur.id);save();home()}}
   else if(a==='exp'){const j=JSON.stringify(db);(navigator.clipboard?navigator.clipboard.writeText(j):Promise.reject()).then(()=>alert('Backup copiado. Cola-o numa nota.')).catch(()=>prompt('Copia o backup:',j))}
   else if(a==='imp'){const j=prompt('Cola aqui o backup:');if(j){try{const d=JSON.parse(j);if(!Array.isArray(d))throw 0;d.forEach(x=>{x.id=uid();db.push(norm(x))});save();home()}catch(_){alert('Backup inválido.')}}}
-  else if(a==='again'){start(run.ex,from)}
-  else if(a==='close'){stop()}
+  else if(a==='again'){
+    const origin=from;
+    stop(true);
+    origin==='edit'&&cur?editor():prep();
+  }
+  else if(a==='close'){
+    stop(true);
+    home();
+  }
 });
 function persist(){
   cur.name=cur.name||'Sem nome';cur.rep=Math.max(1,cur.rep|0);
@@ -239,11 +292,26 @@ function delay(s,n,total){
   return Math.max(16,ms*1000);
 }
 function build(ex){
+  const count=Math.max(1,ex.rep|0);
+  if(isR(ex)){
+    const seq=[];
+    for(let r=0;r<count;r++){
+      seq.push({...ex.steps[0],_role:'wait'});
+      seq.push({...ex.steps[1],_role:'go'});
+    }
+    return seq;
+  }
+  if(ex.shuffle){
+    const seq=[];
+    for(let r=0;r<count;r++){
+      const pick=ex.steps[Math.random()*ex.steps.length|0];
+      seq.push({...pick});
+    }
+    return seq;
+  }
   const seq=[];
-  for(let r=0;r<Math.max(1,ex.rep|0);r++){
-    const l=ex.steps.slice();
-    if(ex.shuffle)for(let i=l.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[l[i],l[j]]=[l[j],l[i]]}
-    seq.push(...l);
+  for(let r=0;r<count;r++){
+    seq.push(...ex.steps.map(s=>({...s})));
   }
   return seq;
 }
@@ -264,7 +332,7 @@ document.addEventListener('visibilitychange',()=>{if(run&&document.visibilitySta
 
 function start(ex,origin){
   stop(true);from=origin;
-  run={ex,seq:build(ex),i:-1,times:[],miss:0,next:0,t0:0,tapped:true,raf:0,cd:0};
+  run={ex,seq:build(ex),i:-1,times:[],miss:0,next:0,t0:0,tapped:true,blinking:false,raf:0,cd:0};
   $('#res').hidden=true;$('#run').hidden=false;lock();
   let c=Math.max(0,ex.cd|0);
   const step=()=>{
@@ -276,24 +344,64 @@ function start(ex,origin){
 }
 function tick(now){
   if(!run)return;
-  if(run.next&&now>=run.next)advance();
+  if(run.next&&now>=run.next){
+    if(run.blinking){
+      run.blinking=false;
+      showStep();
+    }else{
+      advance();
+    }
+  }
   if(run)run.raf=requestAnimationFrame(tick);
 }
 function advance(){
   const r=run;
-  if(isR(r.ex)&&r.i>=0&&!r.tapped)r.miss++;
+  if(isR(r.ex)&&r.i>=0){
+    const prev=r.seq[r.i];
+    if(prev&&prev._role==='go'&&!r.tapped)r.miss++;
+  }
   r.i++;
   if(r.i>=r.seq.length){finish();return}
+
+  if(!isR(r.ex)&&r.i>0){
+    r.blinking=true;
+    r.next=0;
+    paint(BLINK_BG,'','#fff');
+    requestAnimationFrame(()=>{
+      if(run!==r)return;
+      r.next=performance.now()+200;
+    });
+    return;
+  }
+  showStep();
+}
+function showStep(){
+  const r=run;
   const s=r.seq[r.i];
   paint(s.color,s.text,s.tcolor);
   r.next=0;r.tapped=false;
-  requestAnimationFrame(()=>{if(run!==r)return;r.t0=performance.now();r.next=r.t0+delay(s,r.i,r.seq.length)});
+  requestAnimationFrame(()=>{
+    if(run!==r)return;
+    r.t0=performance.now();
+    r.next=r.t0+delay(s,r.i,r.seq.length);
+  });
 }
 $('#run').addEventListener('pointerdown',e=>{
-  if(!run||!isR(run.ex)||run.tapped||!run.next||e.target.closest('button'))return;
-  run.tapped=true;run.times.push(Math.max(0,e.timeStamp-run.t0));
-  const currentStep=run.seq[run.i];
-  if(currentStep&&currentStep.tapNext!==false)advance();
+  if(!run||!$('#res').hidden||!isR(run.ex)||!run.next||e.target.closest('button'))return;
+  const s=run.seq[run.i];
+  if(!s)return;
+  if(s._role==='wait'){
+    if(!run.tapped){
+      run.tapped=true;
+      run.miss++;
+    }
+    return;
+  }
+  if(s._role==='go'&&!run.tapped){
+    run.tapped=true;
+    run.times.push(Math.max(0,e.timeStamp-run.t0));
+    if(s.tapNext!==false)advance();
+  }
 });
 function finish(){
   cancelAnimationFrame(run.raf);unlock();
@@ -305,8 +413,8 @@ function finish(){
   $('#res').hidden=false;
   $('#res').innerHTML=`<div class="inner">`+(r?'<h1>Resultado</h1>':'<h1>Terminado</h1>')+(!r?'':n?
     `<div class="muted">Média</div><div class="big">${avg} ms</div>
-     <p>Melhor ${best} ms · Pior ${worst} ms<br>Toques: ${n} · Sem toque: ${run.miss}</p>`
-    :`<p class="muted">Não houve toques registados. Toca no ecrã quando a cor mudar.</p>`)+
+     <p>Melhor ${best} ms · Pior ${worst} ms<br>Toques válidos: ${n} · Falhas / antecipados: ${run.miss}</p>`
+    :`<p class="muted">Não houve toques válidos registados. Aguarda pela 2.ª cor para tocar.</p>`)+
     `<div class="bar"><button class="pri" data-a="again">Repetir</button><button data-a="close">Fechar</button></div></div>`;
 }
 function stop(silent){
