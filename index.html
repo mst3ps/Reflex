@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Reflexos">
+<meta name="theme-color" content="#1b2030">
+<title>Reflexos</title>
+<style>
+:root{--bg:#f2f3f7;--card:#fff;--ink:#1b2030;--mute:#6b7285;--line:#d9dce5;--acc:#2f6bff;--accink:#fff;--danger:#d93c3c}
+@media(prefers-color-scheme:dark){:root{--bg:#161a26;--card:#20263a;--ink:#eef0f6;--mute:#9aa2b8;--line:#323a54;--acc:#6c94ff;--accink:#0d1330;--danger:#ff7a7a}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.4 ui-rounded,"SF Pro Rounded",system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);touch-action:manipulation}
+[hidden]{display:none!important}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:28px;margin:8px 0 16px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 14px;min-height:44px}
+button.pri{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:700}
+button.bad{color:var(--danger)}
+input,select,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px}
+input[type=color]{padding:2px;width:56px;flex:none}
+input[type=checkbox]{width:24px;min-height:24px;flex:none}
+textarea{resize:vertical}
+label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--ink)}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.row>button,.row>input[type=color]{flex:none}
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card small{display:block;color:var(--mute)}
+.step{background:var(--card);border-left:8px solid #e53935;border-radius:12px;padding:12px;margin:12px 0}
+.tools{display:flex;gap:6px;margin-left:auto}
+.tools button{padding:6px 10px;min-height:40px}
+.muted{color:var(--mute)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+#run{position:fixed;inset:0;z-index:10;background:#000;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+#box{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#txt{white-space:pre;text-align:center;line-height:1.1;font-weight:800;display:inline-block}
+#x{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;background:rgba(0,0,0,.35);color:#fff;border:0;border-radius:22px;width:44px;padding:0}
+#res{position:absolute;inset:0;background:var(--bg);color:var(--ink);padding:max(24px,env(safe-area-inset-top)) 20px 24px;overflow:auto}
+.big{font-size:56px;font-weight:800}
+</style>
+</head>
+<body>
+<main id="home">
+  <h1>Reflexos</h1>
+  <div id="list"></div>
+  <div class="bar">
+    <button class="pri" data-a="new">Novo exercício</button>
+    <button data-a="imp">Importar</button>
+    <button data-a="exp">Copiar backup</button>
+  </div>
+</main>
+
+<main id="edit" hidden></main>
+
+<div id="run" hidden>
+  <button id="x" aria-label="Sair">✕</button>
+  <div id="box"><div id="txt"></div></div>
+  <div id="res" hidden></div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const KEY='reflexos.v2';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const rd=()=>{try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}};
+let db=rd()||[{id:uid(),name:'Exemplo: 4 cores',rep:5,cd:3,shuffle:true,react:false,steps:[
+  {color:'#e53935',text:'VERMELHO',tcolor:'#ffffff',mode:'range',a:0.4,b:1.5,list:'0.5; 1.2; 0.3',rnd:false},
+  {color:'#1e88e5',text:'AZUL',tcolor:'#ffffff',mode:'range',a:0.4,b:1.5,list:'0.5; 1.2; 0.3',rnd:false},
+  {color:'#43a047',text:'VERDE',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:'0.5; 1.2; 0.3',rnd:false},
+  {color:'#fdd835',text:'AMARELO',tcolor:'#000000',mode:'ramp',a:1.2,b:0.3,list:'0.5; 1.2; 0.3',rnd:false}]}];
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}};
+const newStep=()=>({color:'#e53935',text:'',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:'0.5; 1.2; 0.3',rnd:false});
+let cur=null,from='home',run=null,lockObj=null;
+
+/* ---------- Início ---------- */
+function home(){
+  $('#home').hidden=false;$('#edit').hidden=true;
+  $('#list').innerHTML=db.map(e=>`<div class="card"><div><b>${esc(e.name||'Sem nome')}</b>
+    <small>${e.steps.length} passos, ${e.rep}× ${e.last?'· média '+e.last.avg+' ms':''}</small></div>
+    <div class="row"><button class="pri" data-a="run" data-id="${e.id}">▶</button><button data-a="edit" data-id="${e.id}">Editar</button></div></div>`).join('')
+    ||'<p class="muted">Ainda não tens exercícios. Cria o primeiro.</p>';
+}
+
+/* ---------- Editor ---------- */
+const MODES={fixed:'Fixo',range:'Intervalo aleatório',list:'Lista de valores',ramp:'Progressivo'};
+function timingHtml(s,i){
+  const n=(k,l)=>`<div><label>${l}</label><input type="number" inputmode="decimal" min="0.05" step="any" data-i="${i}" data-k="${k}" value="${s[k]}"></div>`;
+  if(s.mode==='fixed')return `<div class="row">${n('a','Tempo (s)')}</div>`;
+  if(s.mode==='range')return `<div class="row">${n('a','Mínimo (s)')}${n('b','Máximo (s)')}</div>`;
+  if(s.mode==='ramp')return `<div class="row">${n('a','Início (s)')}${n('b','Fim (s)')}</div><div class="muted">Vai mudando ao longo do exercício.</div>`;
+  return `<label>Valores em segundos, separados por ponto e vírgula</label><input data-i="${i}" data-k="list" value="${esc(s.list)}">
+    <label class="chk"><input type="checkbox" data-i="${i}" data-k="rnd" ${s.rnd?'checked':''}> Escolher ao acaso</label>`;
+}
+function stepHtml(s,i){
+  return `<div class="step" style="border-left-color:${s.color}">
+  <div class="row"><input type="color" data-i="${i}" data-k="color" value="${s.color}" aria-label="Cor de fundo">
+  <input type="color" data-i="${i}" data-k="tcolor" value="${s.tcolor}" aria-label="Cor do texto">
+  <div class="tools"><button data-a="up" data-i="${i}">↑</button><button data-a="down" data-i="${i}">↓</button>
+  <button data-a="dup" data-i="${i}">⧉</button><button class="bad" data-a="del" data-i="${i}">✕</button></div></div>
+  <label>Texto (Enter = nova linha; encolhe para caber)</label>
+  <textarea rows="2" data-i="${i}" data-k="text">${esc(s.text)}</textarea>
+  <label>Tempo até à cor seguinte</label>
+  <select data-i="${i}" data-k="mode">${Object.entries(MODES).map(([k,v])=>`<option value="${k}" ${s.mode===k?'selected':''}>${v}</option>`).join('')}</select>
+  ${timingHtml(s,i)}</div>`;
+}
+function editor(){
+  $('#home').hidden=true;$('#edit').hidden=false;
+  $('#edit').innerHTML=`<h1>Exercício</h1>
+  <label>Nome</label><input data-k="name" value="${esc(cur.name)}">
+  <div class="row"><div><label>Repetições</label><input type="number" inputmode="numeric" min="1" data-k="rep" value="${cur.rep}"></div>
+  <div><label>Contagem inicial (s)</label><input type="number" inputmode="numeric" min="0" data-k="cd" value="${cur.cd}"></div></div>
+  <label class="chk"><input type="checkbox" data-k="shuffle" ${cur.shuffle?'checked':''}> Ordem aleatória das cores</label>
+  <label class="chk"><input type="checkbox" data-k="react" ${cur.react?'checked':''}> Medir tempo de reação (tocas no ecrã a cada cor)</label>
+  ${cur.steps.map(stepHtml).join('')}
+  <button data-a="add" style="width:100%">+ Adicionar passo</button>
+  <div class="bar"><button class="pri" data-a="save">Guardar</button><button data-a="test">▶ Testar</button>
+  <button data-a="cancel">Voltar</button><button class="bad" data-a="delex">Apagar</button></div>`;
+}
+$('#edit').addEventListener('input',e=>{
+  const t=e.target,k=t.dataset.k;if(!k)return;
+  const o=t.dataset.i!==undefined?cur.steps[+t.dataset.i]:cur;
+  o[k]=t.type==='checkbox'?t.checked:t.type==='number'?+t.value:t.value;
+  if(k==='color')t.closest('.step').style.borderLeftColor=t.value;
+});
+$('#edit').addEventListener('change',e=>{if(e.target.dataset.k==='mode')editor()});
+
+/* ---------- Ações ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const a=b.dataset.a,i=+b.dataset.i,id=b.dataset.id,S=cur&&cur.steps;
+  if(a==='new'){cur={id:uid(),name:'',rep:5,cd:3,shuffle:false,react:false,steps:[newStep()]};editor()}
+  else if(a==='edit'){cur=JSON.parse(JSON.stringify(db.find(x=>x.id===id)));editor()}
+  else if(a==='run'){start(db.find(x=>x.id===id),'home')}
+  else if(a==='add'){S.push(newStep());editor()}
+  else if(a==='del'){if(S.length>1){S.splice(i,1);editor()}}
+  else if(a==='dup'){S.splice(i+1,0,JSON.parse(JSON.stringify(S[i])));editor()}
+  else if(a==='up'&&i>0){[S[i-1],S[i]]=[S[i],S[i-1]];editor()}
+  else if(a==='down'&&i<S.length-1){[S[i+1],S[i]]=[S[i],S[i+1]];editor()}
+  else if(a==='save'){persist();home()}
+  else if(a==='test'){start(cur,'edit')}
+  else if(a==='cancel'){home()}
+  else if(a==='delex'){if(confirm('Apagar este exercício?')){db=db.filter(x=>x.id!==cur.id);save();home()}}
+  else if(a==='exp'){const j=JSON.stringify(db);(navigator.clipboard?navigator.clipboard.writeText(j):Promise.reject()).then(()=>alert('Backup copiado. Cola-o numa nota.')).catch(()=>prompt('Copia o backup:',j))}
+  else if(a==='imp'){const j=prompt('Cola aqui o backup:');if(j){try{const d=JSON.parse(j);if(!Array.isArray(d))throw 0;d.forEach(x=>{x.id=uid();db.push(x)});save();home()}catch(_){alert('Backup inválido.')}}}
+  else if(a==='again'){start(run.ex,from)}
+  else if(a==='close'){stop()}
+});
+function persist(){
+  cur.name=cur.name||'Sem nome';cur.rep=Math.max(1,cur.rep|0);
+  const k=db.findIndex(x=>x.id===cur.id);
+  const keep=k>=0?db[k].last:undefined;if(keep)cur.last=keep;
+  k>=0?db[k]=cur:db.push(cur);save();
+}
+
+/* ---------- Execução ---------- */
+function delay(s,n,total){
+  const a=+s.a||0,b=+s.b||0;let ms;
+  if(s.mode==='range'){const lo=Math.min(a,b),hi=Math.max(a,b);ms=lo+Math.random()*(hi-lo)}
+  else if(s.mode==='list'){const L=String(s.list).split(/[;\s]+/).map(x=>parseFloat(x.replace(',','.'))).filter(x=>x>0);
+    ms=!L.length?0.8:s.rnd?L[Math.random()*L.length|0]:L[n%L.length]}
+  else if(s.mode==='ramp')ms=a+(b-a)*(total>1?n/(total-1):0);
+  else ms=a;
+  return Math.max(16,ms*1000);
+}
+function build(ex){
+  const seq=[];
+  for(let r=0;r<Math.max(1,ex.rep|0);r++){
+    const l=ex.steps.slice();
+    if(ex.shuffle)for(let i=l.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[l[i],l[j]]=[l[j],l[i]]}
+    seq.push(...l);
+  }
+  return seq;
+}
+function fit(){
+  const t=$('#txt'),box=$('#box'),W=box.clientWidth,H=box.clientHeight;
+  if(!t.textContent){return}
+  let lo=6,hi=Math.max(H,200);
+  for(let k=0;k<14;k++){
+    const m=(lo+hi)/2;t.style.fontSize=m+'px';
+    if(t.offsetWidth<=W&&t.offsetHeight<=H)lo=m;else hi=m;
+  }
+  t.style.fontSize=lo+'px';
+}
+function paint(bg,text,fg){$('#run').style.background=bg;const t=$('#txt');t.textContent=text;t.style.color=fg;fit()}
+async function lock(){try{lockObj=await navigator.wakeLock.request('screen')}catch(e){}}
+function unlock(){try{lockObj&&lockObj.release()}catch(e){}lockObj=null}
+document.addEventListener('visibilitychange',()=>{if(run&&document.visibilityState==='visible')lock()});
+
+function start(ex,origin){
+  stop(true);from=origin;
+  run={ex,seq:build(ex),i:-1,times:[],miss:0,next:0,t0:0,tapped:true,raf:0,cd:0};
+  $('#res').hidden=true;$('#run').hidden=false;lock();
+  let c=Math.max(0,ex.cd|0);
+  const step=()=>{
+    if(!run)return;
+    if(c>0){paint('#000',String(c),'#fff');c--;run.cd=setTimeout(step,1000)}
+    else{run.raf=requestAnimationFrame(tick);advance()}
+  };
+  step();
+}
+function tick(now){
+  if(!run)return;
+  if(run.next&&now>=run.next)advance();
+  if(run)run.raf=requestAnimationFrame(tick);
+}
+function advance(){
+  const r=run;
+  if(r.ex.react&&r.i>=0&&!r.tapped)r.miss++;
+  r.i++;
+  if(r.i>=r.seq.length){finish();return}
+  const s=r.seq[r.i];
+  paint(s.color,s.text,s.tcolor);
+  r.next=0;r.tapped=false;
+  requestAnimationFrame(()=>{if(run!==r)return;r.t0=performance.now();r.next=r.t0+delay(s,r.i,r.seq.length)});
+}
+$('#run').addEventListener('pointerdown',e=>{
+  if(!run||!run.ex.react||run.tapped||!run.next||e.target.closest('button'))return;
+  run.tapped=true;run.times.push(Math.max(0,e.timeStamp-run.t0));
+});
+function finish(){
+  cancelAnimationFrame(run.raf);unlock();
+  const t=run.times,n=t.length;
+  const avg=n?Math.round(t.reduce((a,b)=>a+b,0)/n):0;
+  const best=n?Math.round(Math.min(...t)):0,worst=n?Math.round(Math.max(...t)):0;
+  const ex=db.find(x=>x.id===run.ex.id);
+  if(n&&ex){ex.last={avg,best,worst,d:Date.now()};save()}
+  $('#res').hidden=false;
+  $('#res').innerHTML=(run.ex.react?'<h1>Resultado</h1>':'<h1>Terminado</h1>')+(!run.ex.react?'':n?
+    `<div class="muted">Média</div><div class="big">${avg} ms</div>
+     <p>Melhor ${best} ms · Pior ${worst} ms<br>Toques: ${n} · Sem toque: ${run.miss}</p>`
+    :`<p class="muted">Não houve toques registados. Toca no ecrã quando a cor mudar para medir o tempo de reação.</p>`)+
+    `<div class="bar"><button class="pri" data-a="again">Repetir</button><button data-a="close">Fechar</button></div>`;
+}
+function stop(silent){
+  if(run){cancelAnimationFrame(run.raf);clearTimeout(run.cd)}
+  const had=run;run=null;unlock();
+  $('#run').hidden=true;$('#res').hidden=true;
+  if(!silent&&had){from==='edit'&&cur?editor():home()}
+}
+$('#x').addEventListener('click',()=>stop());
+addEventListener('resize',()=>{if(run&&!$('#run').hidden)fit()});
+home();
+</script>
+</body>
+</html>
