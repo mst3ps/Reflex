@@ -31,16 +31,28 @@ label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--in
 .row{display:flex;gap:8px;align-items:center}
 .row>*{flex:1}
 .row>button,.row>input[type=color]{flex:none}
-.seg{display:flex;gap:4px;background:var(--card);border-radius:14px;padding:4px;margin-bottom:10px}
-.seg button{flex:1;border:0;background:transparent}
+.seg{display:flex;gap:4px;background:var(--card);border-radius:16px;padding:4px;margin-bottom:10px}
+.seg button{flex:1;border:0;background:transparent;min-height:52px;font-size:18px}
 .seg button.on{background:var(--acc);color:var(--accink);font-weight:700}
-.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
-.card small{display:block;color:var(--mute)}
+.ex{display:flex;gap:10px;margin-bottom:12px}
+.ex .open{flex:1;min-height:88px;border-radius:20px;padding:14px 18px;text-align:left;font-size:21px;font-weight:700;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.ex .open small{font-size:14px;font-weight:400;color:var(--mute)}
+.ex .ed{width:88px;min-height:88px;border-radius:20px;padding:0}
+.home-bar{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+.home-bar button{min-height:56px;font-size:17px}
+.home-bar .pri{flex:1 1 100%;min-height:64px;font-size:19px}
+.home-bar button:not(.pri){flex:1}
 .step{background:var(--card);border-left:8px solid #e53935;border-radius:12px;padding:12px;margin:12px 0}
 .tools{display:flex;gap:6px;margin-left:auto}
 .tools button{padding:6px 10px;min-height:40px}
 .muted{color:var(--mute)}
 .bar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.sum{background:var(--card);border-radius:18px;padding:4px 18px}
+.sum div{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.sum div:last-child{border-bottom:0}
+.prepbar{display:flex;flex-direction:column;gap:14px;margin-top:28px}
+.prepbar .go{min-height:104px;font-size:28px;border-radius:24px}
+.prepbar .back{min-height:56px;width:60%;align-self:center;font-size:17px}
 #run{position:fixed;inset:0;z-index:10;background:#000;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
 #box{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
 #txt{white-space:pre;text-align:center;line-height:1.1;font-weight:800;display:inline-block}
@@ -55,12 +67,14 @@ label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--in
   <div class="seg" id="tabs"></div>
   <p class="muted" id="desc"></p>
   <div id="list"></div>
-  <div class="bar">
+  <div class="home-bar">
     <button class="pri" data-a="new">Novo exercício</button>
     <button data-a="imp">Importar</button>
     <button data-a="exp">Copiar backup</button>
   </div>
 </main>
+
+<main id="prep" hidden></main>
 
 <main id="edit" hidden></main>
 
@@ -85,25 +99,39 @@ let db=rd()||[
   {color:'#1e88e5',text:'AZUL',tcolor:'#ffffff',mode:'range',a:0.4,b:1.5,list:L0,rnd:false},
   {color:'#43a047',text:'VERDE',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:L0,rnd:false},
   {color:'#fdd835',text:'AMARELO',tcolor:'#000000',mode:'ramp',a:1.2,b:0.3,list:L0,rnd:false}]},
- {id:uid(),type:'react',name:'Exemplo: reação',rep:10,cd:3,shuffle:true,steps:[
+ {id:uid(),type:'react',name:'Exemplo: reação',rep:10,cd:3,shuffle:true,tapNext:true,steps:[
   {color:'#e53935',text:'JÁ!',tcolor:'#ffffff',mode:'range',a:1,b:3,list:L0,rnd:false},
   {color:'#43a047',text:'JÁ!',tcolor:'#ffffff',mode:'range',a:1,b:3,list:L0,rnd:false}]}
 ];
 db.forEach(norm);
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}};
 const newStep=()=>({color:'#e53935',text:'',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:L0,rnd:false});
-let cur=null,from='home',run=null,lockObj=null,tab='show';
+let cur=null,from='home',run=null,lockObj=null,tab='show',sel=null;
+function view(v){['home','edit','prep'].forEach(x=>$('#'+x).hidden=x!==v)}
 
 /* ---------- Início ---------- */
 function home(){
-  $('#home').hidden=false;$('#edit').hidden=true;
+  view('home');
   $('#tabs').innerHTML=[['show','Cores'],['react','Reação']].map(([k,v])=>`<button class="${tab===k?'on':''}" data-a="tab" data-t="${k}">${v}</button>`).join('');
   $('#desc').textContent=tab==='react'?'Tocas no ecrã quando a cor muda e mede-se o tempo de reação.':'Só mostra as cores a mudar, sem medir toques.';
   const L=db.filter(e=>e.type===tab);
-  $('#list').innerHTML=L.map(e=>`<div class="card"><div><b>${esc(e.name||'Sem nome')}</b>
-    <small>${e.steps.length} passos, ${e.rep}× ${isR(e)&&e.last?'· média '+e.last.avg+' ms':''}</small></div>
-    <div class="row"><button class="pri" data-a="run" data-id="${e.id}">▶</button><button data-a="edit" data-id="${e.id}">Editar</button></div></div>`).join('')
+  $('#list').innerHTML=L.map(e=>`<div class="ex"><button class="open" data-a="open" data-id="${e.id}"><span>${esc(e.name||'Sem nome')}</span>
+    <small>${e.steps.length} passos · ${e.rep}×${isR(e)&&e.last?' · média '+e.last.avg+' ms':''}</small></button>
+    <button class="ed" data-a="edit" data-id="${e.id}">Editar</button></div>`).join('')
     ||'<p class="muted">Ainda não tens exercícios aqui. Cria o primeiro.</p>';
+}
+
+/* ---------- Página antes do exercício ---------- */
+function prep(id){
+  sel=id||sel;const e=db.find(x=>x.id===sel);
+  if(!e){home();return}
+  view('prep');
+  const r=isR(e);
+  const rows=[['Tipo',r?'Reação':'Cores'],['Passos',e.steps.length],['Repetições',e.rep],['Contagem inicial',(e.cd|0)+' s'],['Ordem aleatória',e.shuffle?'Sim':'Não']];
+  if(r){rows.push(['Tocar passa à próxima cor',e.tapNext?'Sim':'Não']);if(e.last)rows.push(['Última média',e.last.avg+' ms'])}
+  $('#prep').innerHTML=`<h1>${esc(e.name||'Sem nome')}</h1>
+  <div class="sum">${rows.map(([k,v])=>`<div><span class="muted">${k}</span><b>${v}</b></div>`).join('')}</div>
+  <div class="prepbar"><button class="pri go" data-a="go">Começar</button><button class="back" data-a="back">Voltar</button></div>`;
 }
 
 /* ---------- Editor ---------- */
@@ -129,13 +157,14 @@ function stepHtml(s,i){
   ${timingHtml(s,i)}</div>`;
 }
 function editor(){
-  $('#home').hidden=true;$('#edit').hidden=false;
+  view('edit');
   $('#edit').innerHTML=`<h1>${isR(cur)?'Exercício de reação':'Exercício de cores'}</h1>
   <p class="muted">${isR(cur)?'Tocas no ecrã sempre que a cor mudar. No fim vês média, melhor, pior e falhas.':'Só mostra as cores, sem medir toques.'}</p>
   <label>Nome</label><input data-k="name" value="${esc(cur.name)}">
   <div class="row"><div><label>Repetições</label><input type="number" inputmode="numeric" min="1" data-k="rep" value="${cur.rep}"></div>
   <div><label>Contagem inicial (s)</label><input type="number" inputmode="numeric" min="0" data-k="cd" value="${cur.cd}"></div></div>
   <label class="chk"><input type="checkbox" data-k="shuffle" ${cur.shuffle?'checked':''}> Ordem aleatória das cores</label>
+  ${isR(cur)?`<label class="chk"><input type="checkbox" data-k="tapNext" ${cur.tapNext?'checked':''}> Ao tocar, passa logo para a próxima cor</label>`:''}
   ${cur.steps.map(stepHtml).join('')}
   <button data-a="add" style="width:100%">+ Adicionar passo</button>
   <div class="bar"><button class="pri" data-a="save">Guardar</button><button data-a="test">▶ Testar</button>
@@ -154,9 +183,11 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b)return;
   const a=b.dataset.a,i=+b.dataset.i,id=b.dataset.id,S=cur&&cur.steps;
   if(a==='tab'){tab=b.dataset.t;home()}
+  else if(a==='open'){prep(id)}
+  else if(a==='go'){start(db.find(x=>x.id===sel),'prep')}
+  else if(a==='back'){home()}
   else if(a==='new'){cur={id:uid(),type:tab,name:'',rep:5,cd:3,shuffle:false,steps:[newStep()]};editor()}
   else if(a==='edit'){cur=JSON.parse(JSON.stringify(db.find(x=>x.id===id)));editor()}
-  else if(a==='run'){start(db.find(x=>x.id===id),'home')}
   else if(a==='add'){S.push(newStep());editor()}
   else if(a==='del'){if(S.length>1){S.splice(i,1);editor()}}
   else if(a==='dup'){S.splice(i+1,0,JSON.parse(JSON.stringify(S[i])));editor()}
@@ -242,6 +273,7 @@ function advance(){
 $('#run').addEventListener('pointerdown',e=>{
   if(!run||!isR(run.ex)||run.tapped||!run.next||e.target.closest('button'))return;
   run.tapped=true;run.times.push(Math.max(0,e.timeStamp-run.t0));
+  if(run.ex.tapNext)advance();
 });
 function finish(){
   cancelAnimationFrame(run.raf);unlock();
@@ -261,7 +293,7 @@ function stop(silent){
   if(run){cancelAnimationFrame(run.raf);clearTimeout(run.cd)}
   const had=run;run=null;unlock();
   $('#run').hidden=true;$('#res').hidden=true;
-  if(!silent&&had){from==='edit'&&cur?editor():home()}
+  if(!silent&&had){from==='edit'&&cur?editor():from==='prep'?prep():home()}
 }
 $('#x').addEventListener('click',()=>stop());
 addEventListener('resize',()=>{if(run&&!$('#run').hidden)fit()});
