@@ -31,6 +31,9 @@ label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--in
 .row{display:flex;gap:8px;align-items:center}
 .row>*{flex:1}
 .row>button,.row>input[type=color]{flex:none}
+.seg{display:flex;gap:4px;background:var(--card);border-radius:14px;padding:4px;margin-bottom:10px}
+.seg button{flex:1;border:0;background:transparent}
+.seg button.on{background:var(--acc);color:var(--accink);font-weight:700}
 .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .card small{display:block;color:var(--mute)}
 .step{background:var(--card);border-left:8px solid #e53935;border-radius:12px;padding:12px;margin:12px 0}
@@ -49,6 +52,8 @@ label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--in
 <body>
 <main id="home">
   <h1>Reflexos</h1>
+  <div class="seg" id="tabs"></div>
+  <p class="muted" id="desc"></p>
   <div id="list"></div>
   <div class="bar">
     <button class="pri" data-a="new">Novo exercício</button>
@@ -71,22 +76,34 @@ const KEY='reflexos.v2';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
 const rd=()=>{try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}};
-let db=rd()||[{id:uid(),name:'Exemplo: 4 cores',rep:5,cd:3,shuffle:true,react:false,steps:[
-  {color:'#e53935',text:'VERMELHO',tcolor:'#ffffff',mode:'range',a:0.4,b:1.5,list:'0.5; 1.2; 0.3',rnd:false},
-  {color:'#1e88e5',text:'AZUL',tcolor:'#ffffff',mode:'range',a:0.4,b:1.5,list:'0.5; 1.2; 0.3',rnd:false},
-  {color:'#43a047',text:'VERDE',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:'0.5; 1.2; 0.3',rnd:false},
-  {color:'#fdd835',text:'AMARELO',tcolor:'#000000',mode:'ramp',a:1.2,b:0.3,list:'0.5; 1.2; 0.3',rnd:false}]}];
+const isR=e=>e.type==='react';
+function norm(e){e.type=e.type||(e.react?'react':'show');delete e.react;return e}
+const L0='0.5; 1.2; 0.3';
+let db=rd()||[
+ {id:uid(),type:'show',name:'Exemplo: 4 cores',rep:5,cd:3,shuffle:true,steps:[
+  {color:'#e53935',text:'VERMELHO',tcolor:'#ffffff',mode:'range',a:0.4,b:1.5,list:L0,rnd:false},
+  {color:'#1e88e5',text:'AZUL',tcolor:'#ffffff',mode:'range',a:0.4,b:1.5,list:L0,rnd:false},
+  {color:'#43a047',text:'VERDE',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:L0,rnd:false},
+  {color:'#fdd835',text:'AMARELO',tcolor:'#000000',mode:'ramp',a:1.2,b:0.3,list:L0,rnd:false}]},
+ {id:uid(),type:'react',name:'Exemplo: reação',rep:10,cd:3,shuffle:true,steps:[
+  {color:'#e53935',text:'JÁ!',tcolor:'#ffffff',mode:'range',a:1,b:3,list:L0,rnd:false},
+  {color:'#43a047',text:'JÁ!',tcolor:'#ffffff',mode:'range',a:1,b:3,list:L0,rnd:false}]}
+];
+db.forEach(norm);
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}};
-const newStep=()=>({color:'#e53935',text:'',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:'0.5; 1.2; 0.3',rnd:false});
-let cur=null,from='home',run=null,lockObj=null;
+const newStep=()=>({color:'#e53935',text:'',tcolor:'#ffffff',mode:'fixed',a:0.8,b:1.5,list:L0,rnd:false});
+let cur=null,from='home',run=null,lockObj=null,tab='show';
 
 /* ---------- Início ---------- */
 function home(){
   $('#home').hidden=false;$('#edit').hidden=true;
-  $('#list').innerHTML=db.map(e=>`<div class="card"><div><b>${esc(e.name||'Sem nome')}</b>
-    <small>${e.steps.length} passos, ${e.rep}× ${e.last?'· média '+e.last.avg+' ms':''}</small></div>
+  $('#tabs').innerHTML=[['show','Cores'],['react','Reação']].map(([k,v])=>`<button class="${tab===k?'on':''}" data-a="tab" data-t="${k}">${v}</button>`).join('');
+  $('#desc').textContent=tab==='react'?'Tocas no ecrã quando a cor muda e mede-se o tempo de reação.':'Só mostra as cores a mudar, sem medir toques.';
+  const L=db.filter(e=>e.type===tab);
+  $('#list').innerHTML=L.map(e=>`<div class="card"><div><b>${esc(e.name||'Sem nome')}</b>
+    <small>${e.steps.length} passos, ${e.rep}× ${isR(e)&&e.last?'· média '+e.last.avg+' ms':''}</small></div>
     <div class="row"><button class="pri" data-a="run" data-id="${e.id}">▶</button><button data-a="edit" data-id="${e.id}">Editar</button></div></div>`).join('')
-    ||'<p class="muted">Ainda não tens exercícios. Cria o primeiro.</p>';
+    ||'<p class="muted">Ainda não tens exercícios aqui. Cria o primeiro.</p>';
 }
 
 /* ---------- Editor ---------- */
@@ -113,12 +130,12 @@ function stepHtml(s,i){
 }
 function editor(){
   $('#home').hidden=true;$('#edit').hidden=false;
-  $('#edit').innerHTML=`<h1>Exercício</h1>
+  $('#edit').innerHTML=`<h1>${isR(cur)?'Exercício de reação':'Exercício de cores'}</h1>
+  <p class="muted">${isR(cur)?'Tocas no ecrã sempre que a cor mudar. No fim vês média, melhor, pior e falhas.':'Só mostra as cores, sem medir toques.'}</p>
   <label>Nome</label><input data-k="name" value="${esc(cur.name)}">
   <div class="row"><div><label>Repetições</label><input type="number" inputmode="numeric" min="1" data-k="rep" value="${cur.rep}"></div>
   <div><label>Contagem inicial (s)</label><input type="number" inputmode="numeric" min="0" data-k="cd" value="${cur.cd}"></div></div>
   <label class="chk"><input type="checkbox" data-k="shuffle" ${cur.shuffle?'checked':''}> Ordem aleatória das cores</label>
-  <label class="chk"><input type="checkbox" data-k="react" ${cur.react?'checked':''}> Medir tempo de reação (tocas no ecrã a cada cor)</label>
   ${cur.steps.map(stepHtml).join('')}
   <button data-a="add" style="width:100%">+ Adicionar passo</button>
   <div class="bar"><button class="pri" data-a="save">Guardar</button><button data-a="test">▶ Testar</button>
@@ -136,7 +153,8 @@ $('#edit').addEventListener('change',e=>{if(e.target.dataset.k==='mode')editor()
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b)return;
   const a=b.dataset.a,i=+b.dataset.i,id=b.dataset.id,S=cur&&cur.steps;
-  if(a==='new'){cur={id:uid(),name:'',rep:5,cd:3,shuffle:false,react:false,steps:[newStep()]};editor()}
+  if(a==='tab'){tab=b.dataset.t;home()}
+  else if(a==='new'){cur={id:uid(),type:tab,name:'',rep:5,cd:3,shuffle:false,steps:[newStep()]};editor()}
   else if(a==='edit'){cur=JSON.parse(JSON.stringify(db.find(x=>x.id===id)));editor()}
   else if(a==='run'){start(db.find(x=>x.id===id),'home')}
   else if(a==='add'){S.push(newStep());editor()}
@@ -149,7 +167,7 @@ document.addEventListener('click',e=>{
   else if(a==='cancel'){home()}
   else if(a==='delex'){if(confirm('Apagar este exercício?')){db=db.filter(x=>x.id!==cur.id);save();home()}}
   else if(a==='exp'){const j=JSON.stringify(db);(navigator.clipboard?navigator.clipboard.writeText(j):Promise.reject()).then(()=>alert('Backup copiado. Cola-o numa nota.')).catch(()=>prompt('Copia o backup:',j))}
-  else if(a==='imp'){const j=prompt('Cola aqui o backup:');if(j){try{const d=JSON.parse(j);if(!Array.isArray(d))throw 0;d.forEach(x=>{x.id=uid();db.push(x)});save();home()}catch(_){alert('Backup inválido.')}}}
+  else if(a==='imp'){const j=prompt('Cola aqui o backup:');if(j){try{const d=JSON.parse(j);if(!Array.isArray(d))throw 0;d.forEach(x=>{x.id=uid();db.push(norm(x))});save();home()}catch(_){alert('Backup inválido.')}}}
   else if(a==='again'){start(run.ex,from)}
   else if(a==='close'){stop()}
 });
@@ -213,7 +231,7 @@ function tick(now){
 }
 function advance(){
   const r=run;
-  if(r.ex.react&&r.i>=0&&!r.tapped)r.miss++;
+  if(isR(r.ex)&&r.i>=0&&!r.tapped)r.miss++;
   r.i++;
   if(r.i>=r.seq.length){finish();return}
   const s=r.seq[r.i];
@@ -222,21 +240,21 @@ function advance(){
   requestAnimationFrame(()=>{if(run!==r)return;r.t0=performance.now();r.next=r.t0+delay(s,r.i,r.seq.length)});
 }
 $('#run').addEventListener('pointerdown',e=>{
-  if(!run||!run.ex.react||run.tapped||!run.next||e.target.closest('button'))return;
+  if(!run||!isR(run.ex)||run.tapped||!run.next||e.target.closest('button'))return;
   run.tapped=true;run.times.push(Math.max(0,e.timeStamp-run.t0));
 });
 function finish(){
   cancelAnimationFrame(run.raf);unlock();
-  const t=run.times,n=t.length;
+  const r=isR(run.ex),t=run.times,n=t.length;
   const avg=n?Math.round(t.reduce((a,b)=>a+b,0)/n):0;
   const best=n?Math.round(Math.min(...t)):0,worst=n?Math.round(Math.max(...t)):0;
   const ex=db.find(x=>x.id===run.ex.id);
-  if(n&&ex){ex.last={avg,best,worst,d:Date.now()};save()}
+  if(r&&n&&ex){ex.last={avg,best,worst,d:Date.now()};save()}
   $('#res').hidden=false;
-  $('#res').innerHTML=(run.ex.react?'<h1>Resultado</h1>':'<h1>Terminado</h1>')+(!run.ex.react?'':n?
+  $('#res').innerHTML=(r?'<h1>Resultado</h1>':'<h1>Terminado</h1>')+(!r?'':n?
     `<div class="muted">Média</div><div class="big">${avg} ms</div>
      <p>Melhor ${best} ms · Pior ${worst} ms<br>Toques: ${n} · Sem toque: ${run.miss}</p>`
-    :`<p class="muted">Não houve toques registados. Toca no ecrã quando a cor mudar para medir o tempo de reação.</p>`)+
+    :`<p class="muted">Não houve toques registados. Toca no ecrã quando a cor mudar.</p>`)+
     `<div class="bar"><button class="pri" data-a="again">Repetir</button><button data-a="close">Fechar</button></div>`;
 }
 function stop(silent){
