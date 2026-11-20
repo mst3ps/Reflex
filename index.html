@@ -1,3 +1,8 @@
+A causa do problema é sutil, mas direta: o user-select: none aplicado no contentor pai #run bloqueia o disparo fiável de eventos click em alguns browsers móveis (especialmente iOS/Safari) quando tocas em botões filhos dinâmicos, além de o pointerdown no #run capturar o toque antes de o browser sintetizar o clique.
+Como foi corrigido:
+ * Movido user-select: none apenas para #box: Em vez de bloquear a seleção em todo o ecrã #run (o que afetava os botões dentro de #res), agora só a área das cores (#box) tem user-select: none.
+ * Delegação direta e imediata no #res: Adicionei um listener dedicado no próprio #res (reagindo tanto a click como a pointerup com stopPropagation()), garantindo resposta instantânea ao toque em qualquer dispositivo (iOS, Android ou PC).
+Aqui tens o código atualizado e corrigido:
 <!doctype html>
 <html lang="pt">
 <head>
@@ -59,14 +64,14 @@ label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--in
 .prepbar{display:flex;flex-direction:column;gap:14px;margin-top:24px;width:100%}
 .prepbar .go{min-height:96px;font-size:28px;border-radius:24px}
 .prepbar .back{min-height:52px;width:60%;align-self:center;font-size:17px}
-#run{position:fixed;inset:0;z-index:10;background:#000;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));overflow:hidden}
-#box{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#run{position:fixed;inset:0;z-index:10;background:#000;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));overflow:hidden}
+#box{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;user-select:none;-webkit-user-select:none}
 #txt{white-space:pre;text-align:center;line-height:1.1;font-weight:800;display:inline-block}
 #x{position:absolute;z-index:15;top:max(10px,env(safe-area-inset-top));left:10px;background:rgba(0,0,0,.35);color:#fff;border:0;border-radius:22px;width:44px;padding:0}
-#res{position:absolute;inset:0;z-index:20;background:var(--bg);color:var(--ink);padding:max(24px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom));overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#res{position:fixed;inset:0;z-index:30;background:var(--bg);color:var(--ink);padding:max(24px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom));overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 #res .inner{width:100%;max-width:600px}
 #res .bar{justify-content:center;margin-top:24px}
-#res .bar button{flex:1;min-height:56px;font-size:18px}
+#res .bar button{flex:1;min-height:56px;font-size:18px;pointer-events:auto}
 .big{font-size:56px;font-weight:800}
 </style>
 </head>
@@ -90,8 +95,9 @@ label.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--in
 <div id="run" hidden>
   <button id="x" aria-label="Sair">✕</button>
   <div id="box"><div id="txt"></div></div>
-  <div id="res" hidden></div>
 </div>
+
+<div id="res" hidden></div>
 
 <script>
 const $=s=>document.querySelector(s);
@@ -235,9 +241,8 @@ $('#edit').addEventListener('input',e=>{
 $('#edit').addEventListener('change',e=>{if(e.target.dataset.k==='mode')editor()});
 
 /* ---------- Ações ---------- */
-document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-a]');if(!b)return;
-  const a=b.dataset.a,i=+b.dataset.i,id=b.dataset.id,S=cur&&cur.steps;
+function handleAction(a,b){
+  const i=+b.dataset.i,id=b.dataset.id,S=cur&&cur.steps;
   if(a==='tab'){tab=b.dataset.t;home()}
   else if(a==='open'){prep(id)}
   else if(a==='go'){start(db.find(x=>x.id===sel),'prep')}
@@ -273,7 +278,21 @@ document.addEventListener('click',e=>{
     stop(true);
     home();
   }
+}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');
+  if(b)handleAction(b.dataset.a,b);
 });
+
+$('#res').addEventListener('pointerup',e=>{
+  const b=e.target.closest('[data-a]');
+  if(!b)return;
+  e.preventDefault();
+  e.stopPropagation();
+  handleAction(b.dataset.a,b);
+});
+
 function persist(){
   cur.name=cur.name||'Sem nome';cur.rep=Math.max(1,cur.rep|0);
   const k=db.findIndex(x=>x.id===cur.id);
@@ -405,6 +424,7 @@ $('#run').addEventListener('pointerdown',e=>{
 });
 function finish(){
   cancelAnimationFrame(run.raf);unlock();
+  $('#run').hidden=true;
   const r=isR(run.ex),t=run.times,n=t.length;
   const avg=n?Math.round(t.reduce((a,b)=>a+b,0)/n):0;
   const best=n?Math.round(Math.min(...t)):0,worst=n?Math.round(Math.max(...t)):0;
@@ -415,7 +435,7 @@ function finish(){
     `<div class="muted">Média</div><div class="big">${avg} ms</div>
      <p>Melhor ${best} ms · Pior ${worst} ms<br>Toques válidos: ${n} · Falhas / antecipados: ${run.miss}</p>`
     :`<p class="muted">Não houve toques válidos registados. Aguarda pela 2.ª cor para tocar.</p>`)+
-    `<div class="bar"><button class="pri" data-a="again">Repetir</button><button data-a="close">Fechar</button></div></div>`;
+    `<div class="bar"><button type="button" class="pri" data-a="again">Repetir</button><button type="button" data-a="close">Fechar</button></div></div>`;
 }
 function stop(silent){
   if(run){cancelAnimationFrame(run.raf);clearTimeout(run.cd)}
@@ -429,3 +449,4 @@ home();
 </script>
 </body>
 </html>
+
