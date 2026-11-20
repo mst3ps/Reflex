@@ -1,8 +1,4 @@
-A causa do problema é sutil, mas direta: o user-select: none aplicado no contentor pai #run bloqueia o disparo fiável de eventos click em alguns browsers móveis (especialmente iOS/Safari) quando tocas em botões filhos dinâmicos, além de o pointerdown no #run capturar o toque antes de o browser sintetizar o clique.
-Como foi corrigido:
- * Movido user-select: none apenas para #box: Em vez de bloquear a seleção em todo o ecrã #run (o que afetava os botões dentro de #res), agora só a área das cores (#box) tem user-select: none.
- * Delegação direta e imediata no #res: Adicionei um listener dedicado no próprio #res (reagindo tanto a click como a pointerup com stopPropagation()), garantindo resposta instantânea ao toque em qualquer dispositivo (iOS, Android ou PC).
-Aqui tens o código atualizado e corrigido:
+
 <!doctype html>
 <html lang="pt">
 <head>
